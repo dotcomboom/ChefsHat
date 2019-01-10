@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recipe Machine Demo</title>
+    <style>
+      #colorpickerbuttonid0 {
+      	border-radius: 10px;
+      }
+      .caption {
+        font-weight: bold;
+      }
+      img {
+      	max-width: 100%;
+      }
+    </style>
+    
+    <!-- Compiled and minified CSS -->
+    <link rel="stylesheet" href="dist/materialize.min.css">
+
+    <script src="dist/jszip.min.js"></script>
+    <script src="dist/FileSaver.min.js"></script>
+    <script src="dist/cbox.js"></script>
+  </head>
+  <body>
+    <div id="program" class="container">
+      <h1>Chef's Hat Demo</h1>
+      <div id="questions" class="section">
+
+      </div>
+      <br>
+      <div id="buttons" class="section">
+      	<button class="waves-effect waves-light btn" onclick="process('display')">Display</button>
+      	<button class="waves-effect waves-light btn" onclick="process('download')">Download</button>
+      </div>
+      <div id="recipes" class="section">
+
+      </div>
+    </div>
+    <script>
+      zipName = "Chef's Hat Output.zip";
+      questions = {
+        "1": {
+          "type": "text",
+          "tag": "[#text#]",
+          "caption": "One line"
+        },
+        "2": {
+          "type": "multiline",
+          "tag": "[#multiline#]",
+          "caption": "Multiline"
+        },
+        "3": {
+          "type": "color",
+          "tag": "[#color#]",
+          "caption": "Color picker"
+        },
+        "4": {
+          "type": "file",
+          "tag": "[#file#]",
+          "caption": "File input; only one for now"
+        }
+      }
+      defFiles = {
+        "demo.txt": {
+          "type": "base64",
+          "base64": "WyN0ZXh0I10KWyNtdWx0aWxpbmUjXQpbI2NvbG9yI10KWyNmaWxlI10=",
+          "isRecipe": true
+        },
+        "smile.gif": {
+          "type": "base64",
+          "base64": "R0lGODdhBQAFAIACAAAAAP/eACwAAAAABQAFAAACCIwPkWerClIBADs="
+        }
+      }
+      // https://coderwall.com/p/ostduq/escape-html-with-javascript
+      function escapeHTML(str) {
+        return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+      }
+      // https://www.tutorialrepublic.com/faq/how-to-replace-all-occurrences-of-a-string-in-javascript.php
+      function escapeRegExp(string){
+        return string.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      }
+      function replaceAll(str, find, replace) {
+        return str.replace(new RegExp(escapeRegExp(find), 'g'), replace);
+      }
+	
+      var includedFiles = JSON.parse(JSON.stringify(defFiles));
+
+      function init() {
+        var qsdiv = document.getElementById('questions');
+        qsdiv.innerHTML = '';
+        for (var q in questions) {
+          if (questions[q].type == "multiline") {
+          	qsdiv.insertAdjacentHTML('beforeend', '<div id="q' + q + 'div" class="row"><textarea class="materialize-textarea" id="q' + q + 'input"></textarea><label for="q' + q + 'input"><br>' + questions[q].caption + '</label></div>');
+          } else if (questions[q].type == "color") {
+          	qsdiv.insertAdjacentHTML('beforeend', '<div id="q' + q + 'div" class="row"><input type="color" id="q' + q + 'input"><label for="q' + q + 'input"><br>' + questions[q].caption + '</label></div>');
+          } else if (questions[q].type == "file") {
+ 	       	qsdiv.insertAdjacentHTML('beforeend', '<div id="q' + q + 'div" class="row"><input type="file" onChange="updateIncludes()" id="q' + q + 'input"><br><label for="q' + q + 'input">' + questions[q].caption + '</label></div>');
+          } else {
+          	qsdiv.insertAdjacentHTML('beforeend', '<div id="q' + q + 'div" class="row"><input type="text" id="q' + q + 'input"><label for="q' + q + 'input"><br>' + questions[q].caption + '</label></div>');
+          }
+        }
+      }
+      
+      
+      function checkLoaded() {
+      	loaded = true;
+      	
+      	for (var q in questions) {
+      		if (questions[q].type == 'file') {
+      			input = document.getElementById('q' + q + 'input');
+      			if (input.title == 'Loading') {
+      				loaded = false
+      			}
+      		}
+      	}
+      	
+      	return loaded
+      } 
+      
+      function updateIncludes() {
+      	for (var q in questions) {
+      		if (checkLoaded()) {
+      			if (questions[q].type == 'file') {
+      				var x = document.getElementsByClassName("submit");
+					var i;
+					for (i = 0; i < x.length; i++) {
+					    x[i].style.visibility = 'hidden';
+					}
+					input = document.getElementById('q' + q + 'input');
+	      			input.title = 'Loading';
+	      			file = document.getElementById('q' + q + 'input').files[0];
+	      			if (file) {
+	      				var reader = new FileReader();
+	              	 	reader.onloadend = function() {
+	               	   		var dataURL = reader.result;
+	               	   		includedFiles[file.name] = {};
+							includedFiles[file.name]['type'] = 'base64';
+	                		includedFiles[file.name]['base64'] = dataURL.replace(/^.*base64,/, '');
+			      			input.title = '';
+			      			if (checkLoaded()) {
+      							var x = document.getElementsByClassName("submit");
+				      			var i;
+								for (i = 0; i < x.length; i++) {
+							    	x[i].style.visibility = 'visible';
+								}
+							}
+	    				}
+	    				reader.readAsDataURL(file);
+	    			}
+      			}
+      		
+      		}
+      	}
+      }
+          
+      function process(outputType) {
+        var zip = new JSZip();
+        var rsdiv = document.getElementById('recipes');
+        rsdiv.innerHTML = '';
+        rshtml = '';
+      	
+      	updateIncludes();
+        
+        for (var i in includedFiles) {
+          console.log(i);
+          recipe = '';
+          if (includedFiles[i].type == "base64") {
+          	zip.file(i, includedFiles[i].base64, {base64: true});
+          	recipe = includedFiles[i].base64;
+          	if (includedFiles[i].isRecipe) {
+          		recipe = window.atob(recipe);
+          	}
+          } else if (includedFiles[i].type == "text") {
+          	zip.file(i, includedFiles[i].text);
+          	recipe = includedFiles[i].text;
+          }
+          if (includedFiles[i].isRecipe) {
+          	console.log(i)
+          	rshtml += '<p class="caption">' + i + '</p>';
+          	for (var q in questions) {
+          	  var qinput = document.getElementById  ('q' + q + 'input');
+          	  var qvalue = qinput.value;
+          	  if (questions[q].type == 'file') {
+          	  	qvalue = qvalue.replace('C:\\fakepath\\', '');
+          	  }
+          	  recipe = replaceAll(recipe, questions[q].tag, qvalue);
+          	}
+          	rshtml += '<code><pre>' + escapeHTML(recipe) + '</pre></code>';
+          } else {
+          	rshtml += '<p class="caption">' + i + '</p>';
+          	if (includedFiles[i].type == "base64") {
+          		try {
+          			decoded = window.atob(recipe);
+          			if (decoded.includes('GIF')) {
+          				rshtml += '<img src="data:image/gif;base64,' + recipe + '">';
+          			} else if (decoded.includes('PNG')) {
+          				rshtml += '<img src="data:image/png;base64,' + recipe + '">';
+          			} else if (i.endsWith('.jpeg')) {
+          				rshtml += '<img src="data:image/jpeg;base64,' + recipe + '">';
+         	 		} else if (i.endsWith('.jpg')) {
+          				rshtml += '<img src="data:image/jpg;base64,' + recipe + '">';
+          			} else {
+          				rshtml += '<code><pre>' + window.atob(recipe) + '</pre></code>';
+          			}
+          		} catch {}
+          	} else {
+          		rshtml += '<code><pre>' + escapeHTML(recipe) + '</pre></code>';
+          	}
+          }
+        }
+        
+        if (outputType == 'download') {
+        	zip.generateAsync({type:"blob"})
+			.then(function(content) {
+    			saveAs(content, zipName);
+			});
+        } else if (outputType == 'display') {
+        	rsdiv.innerHTML = rshtml;
+        }
+      }
+      init();
+    </script>
+    
+    <!-- Compiled and minified JavaScript -->
+    <script src="dist/materialize.min.js"></script>
+  </body>
+</html>
