@@ -37,4 +37,4 @@ defFiles = {
   }
 }
 ```
-`zipName` is the name of the output ZIP file, `questions` is a list of types of inputs, and `defFiles` is a list of files to use to generate output. Defining one of these as a recipe means that it will decode the Base64 into a string, then replace any occurances of tags with those inputs.
+`zipName` is the name of the output ZIP file, `questions` is a list of inputs to get from the user, and `defFiles` is a list of files to use to generate output. Defining one of these as a recipe means that it will decode the Base64 into a string, then replace any occurances of tags with those inputs.
